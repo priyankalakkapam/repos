@@ -1,0 +1,80 @@
+name: Arthaone Multi-Env Security Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch: # Allows you to run it manually
+
+env:
+  DOCKER_IMAGE_NAME: arthaonecoreapi
+  DOTNET_SOLUTION_PATH: Core.API.csproj
+  TRIVY_REPORT_DIR: ./TrivyReport
+  DEPENDENCY_REPORT_DIR: ./DependencyCheck
+
+jobs:
+  # --- CI BUILD & SCAN STAGE ---
+  build_and_scan:
+    name: CI Build + Security Scanning
+    runs-on: self-hosted
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8.0
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      # SonarQube Scan (Requires SONAR_TOKEN and SONAR_HOST_URL in Secrets)
+      - name: SonarQube Analysis
+        run: |
+          echo "Starting SonarQube Analysis..."
+          # Add your sonar-scanner commands here
+
+      - name: Dotnet Build
+        run: dotnet build ${{ env.DOTNET_SOLUTION_PATH }} --configuration Release
+
+  # --- TST ENVIRONMENT DEPLOYMENT ---
+  deploy-tst:
+    name: Deploy to TST
+    needs: build_and_scan
+    environment: TST
+    runs-on: self-hosted
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build & Push Docker to TST ACR
+        run: |
+          echo "Logging into TST ACR..."
+          # Example: docker login ${{ secrets.ACR_LOGIN_SERVER }} -u ${{ secrets.ACR_USERNAME }} -p ${{ secrets.ACR_PASSWORD }}
+          docker build -t tstarthaoneacr.azurecr.io/${{ env.DOCKER_IMAGE_NAME }}:${{ github.run_id }} -f core-Dockerfile .
+          docker push tstarthaoneacr.azurecr.io/${{ env.DOCKER_IMAGE_NAME }}:${{ github.run_id }}
+
+      - name: Trivy Image Scan
+        run: |
+          trivy image --severity HIGH,CRITICAL tstarthaoneacr.azurecr.io/${{ env.DOCKER_IMAGE_NAME }}:${{ github.run_id }} || echo "Scan completed with vulnerabilities"
+
+  # --- STG ENVIRONMENT DEPLOYMENT ---
+  deploy-stg:
+    name: Deploy to STG
+    needs: deploy-tst
+    environment: STG
+    runs-on: self-hosted
+    steps:
+      - name: STG Specific Logic
+        run: |
+          echo "Promoting image to STG environment..."
+          # Add your STG specific deployment commands here
+
+  # --- PRD ENVIRONMENT DEPLOYMENT ---
+  deploy-prd:
+    name: Deploy to PRD
+    needs: deploy-stg
+    environment: PRD
+    runs-on: self-hosted
+    steps:
+      - name: PRD Specific Logic
+        run: |
+          echo "Deploying to Production Server..."
+          # Add your Production specific commands here
