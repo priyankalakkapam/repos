@@ -13,15 +13,14 @@ env:
 jobs:
   BuildAndScanApp:
     name: Application Build and Security Scan
-    runs-on: [self-hosted, Windows, X64] # Your Windows agent
+    runs-on: [self-hosted, Windows, X64]
     
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # Explicitly using PowerShell for the login command
       - name: Login to ACR
-        shell: powershell
+        shell: bash
         run: |
           echo "${{ secrets.ACR_PASSWORD }}" | docker login ${{ env.ACR_LOGIN_SERVER }} -u ${{ secrets.ACR_USERNAME }} --password-stdin
 
@@ -33,7 +32,7 @@ jobs:
         run: |
           docker push ${{ env.ACR_LOGIN_SERVER }}/${{ env.DOCKER_IMAGE_NAME }}:${{ github.run_id }}
 
-      - name: Docker Cleanup and Prune
+      - name: Docker Cleanup
         shell: powershell
         run: |
           docker image prune -a -f
