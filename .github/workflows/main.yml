@@ -8,27 +8,35 @@ on:
 jobs:
   build-and-test:
     name: Build Application on Windows
-    runs-on: [self-hosted, Windows, X64] # Your local Windows runner
+    runs-on: [self-hosted, Windows, X64] # Your local Windows machine
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # Removed the 'cache' option to avoid the lock file error
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      # Check if files exist to debug the path
-      - name: List Files in Directory
-        run: dir
+      # This step helps us see exactly where the package.json is located
+      - name: Locate package.json
+        shell: pwsh
+        run: |
+          $file = Get-ChildItem -Recurse -Filter "package.json" | Select-Object -First 1
+          if ($file) {
+              Write-Host "Found package.json at: $($file.DirectoryName)"
+              echo "PROJECT_ROOT=$($file.DirectoryName)" >> $env:GITHUB_ENV
+          } else {
+              Write-Error "Could not find package.json anywhere in the repository!"
+              exit 1
+          }
 
-      # Standard install without strict lock file check
       - name: Install Dependencies
+        # This uses the path found in the previous step
+        working-directory: ${{ env.PROJECT_ROOT }}
         run: npm install
-        # If your package.json is in a subfolder, add:
-        # working-directory: ./your-folder-name
 
       - name: Build Project
+        working-directory: ${{ env.PROJECT_ROOT }}
         run: npm run build --if-present
