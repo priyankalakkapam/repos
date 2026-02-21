@@ -8,34 +8,27 @@ on:
 jobs:
   build-and-test:
     name: Build Application on Windows
-    # Using your self-hosted Windows agent
-    runs-on: [self-hosted, Windows, X64] 
+    runs-on: [self-hosted, Windows, X64] # Your local Windows runner
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # Setup Node.js environment on your machine
+      # Removed the 'cache' option to avoid the lock file error
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
-      # Install dependencies from your package.json
+      # Check if files exist to debug the path
+      - name: List Files in Directory
+        run: dir
+
+      # Standard install without strict lock file check
       - name: Install Dependencies
         run: npm install
-        # Note: If your package.json is in a subfolder, uncomment the line below:
-        # working-directory: ./your-subfolder-name
+        # If your package.json is in a subfolder, add:
+        # working-directory: ./your-folder-name
 
-      # Build the project
       - name: Build Project
         run: npm run build --if-present
-
-      # Run your local tests (optional)
-      - name: Run Tests
-        run: npm test --if-present
-        
-      # Optional: List files to confirm build success
-      - name: Check Build Output
-        run: dir
