@@ -7,7 +7,7 @@ on:
 
 env:
   DOCKER_IMAGE_NAME: arthaonecoreapi
-  DOTNET_SOLUTION_PATH: Core.API.csproj
+  DOTNET_SOLUTION_PATH: ./ArthaAPI/Core.API.csproj  # Change this to the actual folder path
   TRIVY_REPORT_DIR: ./TrivyReport
   DEPENDENCY_REPORT_DIR: ./DependencyCheck
 
