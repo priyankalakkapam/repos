@@ -1,4 +1,4 @@
-name: Node.js Local CI-CD
+name: Node.js Windows Agent Pipeline
 
 on:
   push:
@@ -6,9 +6,10 @@ on:
   workflow_dispatch: 
 
 jobs:
-  build-and-test:
-    name: Build Application on Windows
-    runs-on: [self-hosted, Windows, X64] # Targets your local machine
+  build:
+    name: Build on Local Windows Agent
+    # Targets your specific self-hosted runner labels
+    runs-on: [self-hosted, Windows, X64] 
 
     steps:
       - name: Checkout Code
@@ -17,27 +18,29 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
 
-      # Finding the package.json path using standard Windows PowerShell
-      - name: Locate package.json
+      - name: Install and Build
         shell: powershell
         run: |
-          $file = Get-ChildItem -Recurse -Filter "package.json" | Select-Object -First 1
-          if ($file) {
-              $dir = $file.DirectoryName
-              Write-Host "Found package.json at: $dir"
-              # Setting the environment variable for the next steps
-              echo "PROJECT_ROOT=$dir" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          # Dynamically locate package.json to avoid path errors
+          $packageFile = Get-ChildItem -Recurse -Filter "package.json" | Select-Object -First 1
+          
+          if ($packageFile) {
+              $projectDir = $packageFile.DirectoryName
+              Write-Host "Success: Found project at $projectDir"
+              
+              # Navigate to the project folder
+              cd $projectDir
+              
+              # Install dependencies
+              Write-Host "Running npm install..."
+              npm install
+              
+              # Execute build if the script is defined in package.json
+              Write-Host "Running build..."
+              npm run build --if-present
           } else {
-              Write-Error "Could not find package.json anywhere in the repository!"
+              Write-Error "Build Failed: package.json not found in the repository."
               exit 1
           }
-
-      - name: Install Dependencies
-        working-directory: ${{ env.PROJECT_ROOT }}
-        run: npm install
-
-      - name: Build Project
-        working-directory: ${{ env.PROJECT_ROOT }}
-        run: npm run build --if-present
