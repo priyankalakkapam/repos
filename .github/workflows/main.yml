@@ -1,4 +1,4 @@
-name: Arthaone CI Build & Push
+name: CI Build & Security Scans
 
 on:
   push:
@@ -11,31 +11,30 @@ env:
   DOCKERFILE_PATH: './cards-Dockerfile'
 
 jobs:
-  build_and_scan:
+  BuildAndScanApp:
     name: Application Build and Security Scan
-    runs-on: [self-hosted, Windows, X64] # Targets your Windows runner
+    runs-on: [self-hosted, Windows, X64] # Your Windows agent
     
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # === Docker Login ===
+      # Explicitly using PowerShell for the login command
       - name: Login to ACR
+        shell: powershell
         run: |
           echo "${{ secrets.ACR_PASSWORD }}" | docker login ${{ env.ACR_LOGIN_SERVER }} -u ${{ secrets.ACR_USERNAME }} --password-stdin
 
-      # === Build Docker Image ===
       - name: Build Docker Image
         run: |
           docker build -t ${{ env.ACR_LOGIN_SERVER }}/${{ env.DOCKER_IMAGE_NAME }}:${{ github.run_id }} -f ${{ env.DOCKERFILE_PATH }} .
 
-      # === Push Docker Image ===
       - name: Push Docker Image
         run: |
           docker push ${{ env.ACR_LOGIN_SERVER }}/${{ env.DOCKER_IMAGE_NAME }}:${{ github.run_id }}
 
-      # === Docker Cleanup (Matches Azure DevOps logic) ===
       - name: Docker Cleanup and Prune
+        shell: powershell
         run: |
-          powershell -Command "docker image prune -a -f"
+          docker image prune -a -f
           docker buildx prune -a -f
