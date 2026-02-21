@@ -8,7 +8,7 @@ on:
 jobs:
   build-and-test:
     name: Build Application on Windows
-    runs-on: [self-hosted, Windows, X64] # Your local Windows machine
+    runs-on: [self-hosted, Windows, X64] # Targets your local machine
 
     steps:
       - name: Checkout Code
@@ -19,21 +19,22 @@ jobs:
         with:
           node-version: '20'
 
-      # This step helps us see exactly where the package.json is located
+      # Finding the package.json path using standard Windows PowerShell
       - name: Locate package.json
-        shell: pwsh
+        shell: powershell
         run: |
           $file = Get-ChildItem -Recurse -Filter "package.json" | Select-Object -First 1
           if ($file) {
-              Write-Host "Found package.json at: $($file.DirectoryName)"
-              echo "PROJECT_ROOT=$($file.DirectoryName)" >> $env:GITHUB_ENV
+              $dir = $file.DirectoryName
+              Write-Host "Found package.json at: $dir"
+              # Setting the environment variable for the next steps
+              echo "PROJECT_ROOT=$dir" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           } else {
               Write-Error "Could not find package.json anywhere in the repository!"
               exit 1
           }
 
       - name: Install Dependencies
-        # This uses the path found in the previous step
         working-directory: ${{ env.PROJECT_ROOT }}
         run: npm install
 
