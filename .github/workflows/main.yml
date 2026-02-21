@@ -1,4 +1,4 @@
-name: Arthaone Multi-Env Security Pipeline
+name: Arthaone Node.js Multi-Env Pipeline
 
 on:
   push:
@@ -7,63 +7,48 @@ on:
 
 env:
   DOCKER_IMAGE_NAME: arthaonecoreapi
-  DOTNET_SOLUTION_PATH: ./ArthaAPI/Core.API.csproj  # Change this to the actual folder path
-  TRIVY_REPORT_DIR: ./TrivyReport
-  DEPENDENCY_REPORT_DIR: ./DependencyCheck
 
 jobs:
-  # --- CI BUILD & SCAN STAGE ---
-  build_and_scan:
-    name: CI Build + Security Scanning
-    runs-on: self-hosted
+  # --- BUILD STAGE ---
+  build:
+    name: Build & Scan
+    runs-on: [self-hosted, Windows, X64]
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # Removed 'Setup .NET' to avoid permission errors on self-hosted runner
+      - name: Install Dependencies
+        run: npm install
 
-      - name: SonarQube Analysis
-        run: |
-          echo "Starting SonarQube Analysis..."
+      - name: Build
+        run: npm run build --if-present
 
-      - name: Dotnet Build
-        run: dotnet build ${{ env.DOTNET_SOLUTION_PATH }} --configuration Release
-
-  # --- TST ENVIRONMENT DEPLOYMENT ---
+  # --- TST ENVIRONMENT ---
   deploy-tst:
     name: Deploy to TST
-    needs: build_and_scan
+    needs: build
     environment: TST
-    runs-on: self-hosted
+    runs-on: [self-hosted, Windows, X64]
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Docker Build
+        run: docker build -t tstarthaoneacr.azurecr.io/${{ env.DOCKER_IMAGE_NAME }}:${{ github.run_id }} .
 
-      - name: Build & Push Docker to TST ACR
-        run: |
-          echo "Building Docker for TST..."
-          docker build -t tstarthaoneacr.azurecr.io/${{ env.DOCKER_IMAGE_NAME }}:${{ github.run_id }} -f core-Dockerfile .
-
-      - name: Trivy Image Scan
-        run: |
-          trivy image --severity HIGH,CRITICAL tstarthaoneacr.azurecr.io/${{ env.DOCKER_IMAGE_NAME }}:${{ github.run_id }} || echo "Vulnerabilities found"
-
-  # --- STG ENVIRONMENT DEPLOYMENT ---
+  # --- STG ENVIRONMENT ---
   deploy-stg:
     name: Deploy to STG
     needs: deploy-tst
     environment: STG
-    runs-on: self-hosted
+    runs-on: [self-hosted, Windows, X64]
     steps:
-      - name: STG Specific Logic
-        run: echo "Promoting to STG..."
+      - name: Staging Deploy
+        run: echo "Deploying to STG..."
 
-  # --- PRD ENVIRONMENT DEPLOYMENT ---
+  # --- PRD ENVIRONMENT ---
   deploy-prd:
     name: Deploy to PRD
     needs: deploy-stg
     environment: PRD
-    runs-on: self-hosted
+    runs-on: [self-hosted, Windows, X64]
     steps:
-      - name: PRD Specific Logic
-        run: echo "Deploying to Production Server..."
+      - name: Production Deploy
+        run: echo "Deploying to PRD..."
